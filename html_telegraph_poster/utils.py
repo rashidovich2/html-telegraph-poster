@@ -61,7 +61,7 @@ class DocumentPreprocessor:
 
         if base_url:
             urlformat = urlparse(base_url)
-            url_without_path = urlformat.scheme + "://" + urlformat.netloc
+            url_without_path = f"{urlformat.scheme}://{urlformat.netloc}"
             output_base = url_without_path + urlformat.path
         elif document_base_url:
             if urlparse(document_base_url).netloc:

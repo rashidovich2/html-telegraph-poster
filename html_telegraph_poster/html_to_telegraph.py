@@ -48,7 +48,7 @@ def _upload(title, author, text,
         result = json.loads(response.text)
         if 'path' in result:
             result['tph_uuid'] = response.cookies.get('tph_uuid') or tph_uuid
-            result['url'] = telegraph_base_url + '/' + result['path']
+            result['url'] = f'{telegraph_base_url}/' + result['path']
             return result
         else:
             error_msg = result['error'] if 'error' in result else ''
@@ -89,14 +89,13 @@ def _upload_via_api(title, author, text, author_url='', access_token=None, user_
         'Content-Type': 'application/json'
     }
     if path:
-        params.update({'path': path})
+        params['path'] = path
 
     resp = requests.post(telegraph_api_url + method, data=_prepare_page_upload_params(params), headers=request_headers).json()
     if resp['ok'] is True:
         return resp.get('result')
-    else:
-        error_msg = resp['error'] if 'error' in resp else ''
-        raise TelegraphError(error_msg)
+    error_msg = resp['error'] if 'error' in resp else ''
+    raise TelegraphError(error_msg)
 
 
 def create_api_token(short_name, author_name=None, author_url=None, user_agent=default_user_agent):
@@ -104,11 +103,13 @@ def create_api_token(short_name, author_name=None, author_url=None, user_agent=d
         'short_name': short_name,
     }
     if author_name:
-        params.update({'author_name': author_name})
+        params['author_name'] = author_name
     if author_url:
-        params.update({'author_url': author_url})
+        params['author_url'] = author_url
 
-    resp = requests.get(api_url+'/createAccount', params, headers={'User-Agent': user_agent})
+    resp = requests.get(
+        f'{api_url}/createAccount', params, headers={'User-Agent': user_agent}
+    )
     json_data = resp.json()
     return json_data['result']
 
@@ -143,7 +144,11 @@ class TelegraphPoster(object):
         params = params or {}
         if self.access_token:
             params['access_token'] = self.access_token
-        resp = requests.get(self.telegraph_api_url + '/' + method, params, headers={'User-Agent': self.user_agent})
+        resp = requests.get(
+            f'{self.telegraph_api_url}/{method}',
+            params,
+            headers={'User-Agent': self.user_agent},
+        )
         return resp.json()
 
     def post(self, title, author, text, author_url=''):
@@ -168,17 +173,16 @@ class TelegraphPoster(object):
             'clean_html': self.clean_html,
             'convert_html': self.convert_html
         }
-        if self.use_api:
-            params['telegraph_api_url'] = self.telegraph_api_url
-            result = _upload_via_api(access_token=self.access_token, path=path or self.path, **params)
-            self.path = result['path']
-            return result
-        else:
+        if not self.use_api:
             return _upload(
                 tph_uuid=self.tph_uuid,
                 page_id=self.page_id,
                 **params
             )
+        params['telegraph_api_url'] = self.telegraph_api_url
+        result = _upload_via_api(access_token=self.access_token, path=path or self.path, **params)
+        self.path = result['path']
+        return result
 
     def get_account_info(self, fields=None):
         """
